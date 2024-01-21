@@ -540,7 +540,7 @@ const scene = {
 
 
 
-    this.scoreText = this.add.text(16, 16, 'ちゃれんじゃ', { fontSize: '32px', fill: '#000' });
+    //this.scoreText = this.add.text(16, 16, 'ちゃれんじゃ', { fontSize: '32px', fill: '#000' });
   },
   update() {
     //
