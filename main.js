@@ -52,11 +52,64 @@ const CardList = [
 
 
 const Bebel = 8
-const HeightBase = 220
-const WidthBase = -54
+const HeightBase = 100
+const WidthBase = -30
 let y = HeightBase
 let enemyY = -HeightBase
 let direction = 1
+
+class DamageMark {
+  constructor(scene, x, y) {
+    this.scene = scene
+    this.damage = scene.add.sprite(0, 0, 'damage')
+
+    this.sprite = scene.add.container(x, y, [
+      this.damage,
+    ])
+
+
+    /// this.sprite.setBlendMode(Phaser.BlendModes.SCREEN);
+
+    this.sprite.alpha = 0.8
+    this.sprite.visible = false
+
+  }
+
+  setDamage(damage) {
+    this.sprite.scale = 0
+    this.sprite.visible = true
+    // this.sprite.alpha = 0.5
+
+    const self = this;
+    this.scene.tweens.chain({
+      targets: this.sprite,
+      tweens: [
+        {
+          // x: x,
+          // y: y,
+          //angle: angle + 90 + Bebel,
+          ease: 'power1',
+          scale: 2.0,
+          duration: 100,
+        },
+        {
+          // x: x,
+          // y: y,
+          //angle: angle + Bebel,
+          ease: 'power1',
+          //alpha: 0,
+          duration: 150,
+        },
+      ],
+      onComplete: ()=> {
+        console.log('dm: OK!')
+        self.sprite.visible = false
+      },
+    })
+    //
+  }
+
+}
 
 class Card {
   constructor(scene, parent, cardInfo, x, y, cardDirection) {
@@ -79,20 +132,21 @@ class Card {
     this.cardInfo = cardInfo
   }
 
-  enterTo(x, y) {
+  enterTo(x, y, turnPlayer) {
 
+    const angle = turnPlayer * 180
     this.scene.tweens.chain({
       targets: this.card,
       tweens: [
         {
           x: x,
           y: y,
-          angle: 270 + Bebel,
+          angle: angle + 90 + Bebel,
           scale: 0.3,
           duration: 300,
         },
         {
-          angle: 180 + Bebel,
+          angle: angle + Bebel,
           x: x,
           y: y,
           ease: 'power1',
@@ -101,7 +155,7 @@ class Card {
         {
           x: x,
           y: y,
-          angle: 180 + Bebel,
+          angle: angle + Bebel,
           scale: 1.0,
           duration: 200,
         },
@@ -124,7 +178,7 @@ class Card {
           delay: stackCount * 40,
           // angle: '-=8',
           // angle: 180 * (turnPlayer) + 9,
-          x: 0 + stackCount * 8,
+          x: 0 - stackCount * 8,
           y: 0, //enemyY,
           scale: 1.0,
           duration: 100,
@@ -132,15 +186,15 @@ class Card {
         },
         {
           // angle: 180 * (turnPlayer) + 9,
-          x: x + stackCount * 8,
+          x: x - stackCount * 8,
           scale: 1.2,
           y: this.card.y,
           ease: 'power1',
           duration: 300,
         },
         {
-          x: x + stackCount * 8,
-          y: y + stackCount * 8,
+          x: x - stackCount * 8,
+          y: y - stackCount * 8,
           // angle: '+=8',
           scale: 1.0,
           duration: 200,
@@ -298,7 +352,7 @@ const SetupPhase = {
 
     player.diffenceCard = card
 
-    card.enterTo(0, 0)
+    card.enterTo(-WidthBase, enemyY, 1 - turnPlayer)
 
     onEnd();
   },
@@ -360,12 +414,15 @@ const AttackPhase = {
           })
 
 
+          scene.damageMark.setDamage(1)
+
+
           if (total >= enemyCard.cardInfo.p) {
             enemyCard.damaged(() => {
               console.log('かった！'  + turnPlayer, DuelInfo.player[turnPlayer].attackCards)
 
               DuelInfo.player[turnPlayer].attackCards.forEach((c) => {
-                c.enterTo(0, 0)
+                //c.enterTo(0, 0, turnPlayer)
                 c.angle = Bebel + (180 * turnPlayer)
 
                 // console.log(c.card)
@@ -507,6 +564,7 @@ const scene = {
     this.load.image('cat', 'assets/cat.png');
     this.load.image('sky', 'assets/sky2.png');
     this.load.image('modal', 'assets/modal.png');
+    this.load.image('damage', 'assets/damage.png');
     // this.load.spritesheet('dude',
     //   'assets/dude.png',
     //   { frameWidth: 32, frameHeight: 48 }
@@ -530,8 +588,10 @@ const scene = {
 
 
     const flag = new Flag(scene, 480, 170)
-    this.cardBoard = scene.add.container(400, 300, [])
+    this.cardBoard = scene.add.container(400, 280, [])
     DuelInfo.cardBoard = this.cardBoard
+
+    this.damageMark = new DamageMark(scene, 400, 280)
 
     SetupPhase.enter(this, this.cardBoard, DuelInfo, () => {
       //
