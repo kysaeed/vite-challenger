@@ -52,9 +52,9 @@ const CardList = [
 
 
 
-
-let y = 110
-let enemyY = -110
+const HeightBase = 220
+let y = HeightBase
+let enemyY = -HeightBase
 let direction = 1
 
 class Card {
@@ -76,7 +76,6 @@ class Card {
     parent.add(this.card)
 
     this.cardInfo = cardInfo
-
   }
 
   enterTo(x, y) {
@@ -114,21 +113,24 @@ class Card {
   }
 
   attack(stackCount, onEnd) {
-    console.log('attack..')
+    // console.log('attack..')
 
     this.scene.tweens.chain({
       targets: this.card,
       tweens: [
         {
+          delay: stackCount * 40,
           angle: '+=9',
           // angle: 180 * (turnPlayer) + 9,
-          y: enemyY,
+          x: 400 + stackCount * 8,
+          y: 0, //enemyY,
           scale: 1.0,
           duration: 100,
           ease: 'power1',
         },
         {
           // angle: 180 * (turnPlayer) + 9,
+          x: 400 + stackCount * 8,
           scale: 1.2,
           y: this.card.y,
           ease: 'power1',
@@ -136,7 +138,7 @@ class Card {
         },
         {
           x: 400 + stackCount * 8,
-          y: y + stackCount * 8 ,
+          y: y + stackCount * 8,
           angle: '-=9',
           scale: 1.0,
           duration: 200,
@@ -145,6 +147,9 @@ class Card {
       ],
       onComplete() {
         console.log('OK!')
+        if (onEnd) {
+          onEnd()
+        }
       },
     })
 
@@ -214,12 +219,12 @@ class Card {
 const setTurnPlayer = (player) => {
   DuelInfo.turnPlayer = player
   if (!player) {
-    y = 110
-    enemyY = -110
+    y = HeightBase
+    enemyY = -HeightBase
     direction = 1
   } else {
-    y = -110
-    enemyY = 110
+    y = -HeightBase
+    enemyY = HeightBase
     direction = -1
   }
 }
@@ -278,14 +283,20 @@ const SetupPhase = {
     const turnPlayer = DuelInfo.turnPlayer
     const player = DuelInfo.player[1 - turnPlayer]
 
-    let diffenceCardInfo = player.deck.draw()
-    const card = new Card(scene, cardBoard, diffenceCardInfo, 400, enemyY, turnPlayer)
+    DuelInfo.player.forEach((player) => {
+      player.deck = new Deck()
+      player.deck.setCardList(CardList)
+      player.deck.shuffle()
+    })
+
+    let diffenceCardInfo = player.deck.draw(scene, cardBoard, 400, turnPlayer)
+    const card = diffenceCardInfo
     const diffenceCardSprite = card.card
     diffenceCardSprite.angle = 180 * (1 - turnPlayer)
 
     player.diffenceCard = card
 
-    card.enterTo(400, enemyY)
+    card.enterTo(400, 0)
 
     onEnd();
   },
@@ -298,55 +309,128 @@ const AttackPhase = {
     const turnPlayer = DuelInfo.turnPlayer
     const enemyCard = DuelInfo.player[1 - turnPlayer].diffenceCard
 
-    const cardInfo = DuelInfo.player[turnPlayer].deck.draw();
-    if (cardInfo) {
+    const stackCount = DuelInfo.player[turnPlayer].attackCards.length
+    const newAttackCard = DuelInfo.player[turnPlayer].deck.draw(scene, cardBoard, 0, turnPlayer);
+    if (newAttackCard) {
 
-      const stackCount = DuelInfo.player[turnPlayer].attackCards.length
-      const slide = stackCount * 10
+      const x = 400
 
-      const newAttackCard = new Card(scene, cardBoard, cardInfo, 400 + stackCount * 8, y + stackCount * 8, turnPlayer)
-      DuelInfo.player[turnPlayer].attackCards.push(newAttackCard)
+      scene.tweens.chain({
+        targets: newAttackCard.card,
+        tweens: [
+          {
+            x: 400,
+            y: -10,
+            // angle: 270,
+            scale: 2.5,
+            duration: 100,
+            angle: 0,
+          },
+          {
+            delay: 1000,
+            //angle: 180,
+            scale: 1.0,
+            x: x,
+            y: y,
+            ease: 'power1',
+            duration: 200,
+            angle: 180 * turnPlayer,
+          },
+          {
+            x: x,
+            y: y,
+            //angle: 180,
+            scale: 1.0,
+            duration: 100,
+          },
+        ],
+        onComplete() {
 
-      newAttackCard.attack(stackCount)
+          console.log('diffence-card: OK!')
 
-      let total = 0
-      DuelInfo.player[turnPlayer].attackCards.forEach((c) => {
-          total += c.cardInfo.p
+          DuelInfo.player[turnPlayer].attackCards.push(newAttackCard)
+
+          let total = 0
+          DuelInfo.player[turnPlayer].attackCards.forEach((c) => {
+              total += c.cardInfo.p
+          })
+
+          DuelInfo.player[turnPlayer].attackCards.forEach((c, i) => {
+            const stackCount = i
+            c.attack(stackCount)
+          })
+
+
+          if (total >= enemyCard.cardInfo.p) {
+            enemyCard.damaged(() => {
+              console.log('かった！'  + turnPlayer, DuelInfo.player[turnPlayer].attackCards)
+
+              DuelInfo.player[turnPlayer].attackCards.forEach((c) => {
+                c.enterTo(400, 0)
+                // console.log(c.card)
+                // scene.tweens.chain({
+                //   targets:  c.card,
+                //   tweens: {
+                // //     x: 400,
+                // //     y: 0,
+                // //     duration: 100,
+                // //     //scale: 1.0,
+                // //     // angle: 0,
+                //   }
+                // })
+              })
+
+              DuelInfo.player[turnPlayer].diffenceCard = DuelInfo.player[turnPlayer].attackCards.pop()
+              //DuelInfo.player[turnPlayer].attackCards = []
+              flag.moveTo(520, 170 + (200 * (1 - turnPlayer)))
+
+
+
+              const getBenchY = (benchIndex, turnPlayers) => {
+                if (turnPlayers == 0) {
+                  return 200 - (benchIndex * 70)
+                }
+                return (-200 + (benchIndex * 70));
+              }
+
+              const enemyPlayer = DuelInfo.player[1 - turnPlayer]
+              const benchIndex = enemyPlayer.benchCards.length
+              enemyPlayer.diffenceCard.moveToBench(200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer))
+              enemyPlayer.benchCards.push(enemyPlayer.diffenceCard)
+              enemyPlayer.diffenceCard = null
+              for (let i = 0; i < enemyPlayer.attackCards.length; i++) {
+                const benchIndex = enemyPlayer.benchCards.length
+
+                enemyPlayer.benchCards.push(enemyPlayer.attackCards[i]);
+                enemyPlayer.attackCards[i].moveToBench(200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer));
+              }
+              enemyPlayer.attackCards = [];
+
+              if (enemyPlayer.deck.isEmpty()) {
+
+                console.log('END!')
+                const textModal = scene.add.sprite(360, 200, 'modal')
+                textModal.displayWidth = 400
+
+                let text = ''
+                if (turnPlayer == 0) {
+                  text = '勝ち'
+                } else {
+                  text = '負け'
+                }
+
+                const endText = scene.add.text(360, 216, text, { fontSize: '32px', fill: '#000' });
+              }
+
+              setTurnPlayer(1 - turnPlayer)
+
+              onEnd();
+            })
+          }
+
+        },
       })
 
-      if (total >= enemyCard.cardInfo.p) {
-        enemyCard.damaged(() => {
-          console.log('かった！', DuelInfo.player[turnPlayer].attackCards)
-          DuelInfo.player[turnPlayer].diffenceCard = DuelInfo.player[turnPlayer].attackCards.pop()
-          //DuelInfo.player[turnPlayer].attackCards = []
-          flag.moveTo(520, 170 + (200 * (1 - turnPlayer)))
-
-          const getBenchY = (benchIndex, turnPlayers) => {
-            if (turnPlayers == 0) {
-              return 200 - (benchIndex * 70)
-            }
-            return (-200 + (benchIndex * 70));
-          }
-
-          const enemyPlayer = DuelInfo.player[1 - turnPlayer]
-          const benchIndex = enemyPlayer.benchCards.length
-          enemyPlayer.diffenceCard.moveToBench(200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer))
-          enemyPlayer.benchCards.push(enemyPlayer.diffenceCard)
-          enemyPlayer.diffenceCard = null
-          for (let i = 0; i < enemyPlayer.attackCards.length; i++) {
-            const benchIndex = enemyPlayer.benchCards.length
-
-            enemyPlayer.benchCards.push(enemyPlayer.attackCards[i]);
-            enemyPlayer.attackCards[i].moveToBench(200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer));
-          }
-          enemyPlayer.attackCards = [];
-
-          setTurnPlayer(1 - turnPlayer)
-
-
-          onEnd();
-        })
-      }
     }
 
   },
@@ -354,7 +438,7 @@ const AttackPhase = {
 }
 
 const DamagePhase = {
-  enter(scene, DuelInfo, onEnd) {
+  enter(scene, cardBoard, flag, DuelInfo, onEnd) {
 
     onEnd();
   },
@@ -371,11 +455,16 @@ class Deck {
     this.cards = _.cloneDeep(cardList)
   }
   shuffle() {
-    _.shuffle(this.cards)
+    this.cards = _.shuffle(this.cards)
   }
 
-  draw() {
-    const card = this.cards.shift()
+  draw(scene, cardBoard, stackCount, turnPlayer) {
+    if (this.isEmpty()) {
+      return null
+    }
+
+    const cardInfo = this.cards.shift()
+    const card = new Card(scene, cardBoard, cardInfo, 400 + stackCount * 8, y + stackCount * 8, turnPlayer)
     return card
   }
 
@@ -415,19 +504,15 @@ const scene = {
     this.load.image('card_back', 'assets/card_back.png');
     this.load.image('chara', 'assets/chara.png');
     this.load.image('cat', 'assets/cat.png');
-    this.load.image('sky', 'assets/sky.png');
-    this.load.spritesheet('dude',
-      'assets/dude.png',
-      { frameWidth: 32, frameHeight: 48 }
-    );
+    this.load.image('sky', 'assets/sky2.png');
+    this.load.image('modal', 'assets/modal.png');
+    // this.load.spritesheet('dude',
+    //   'assets/dude.png',
+    //   { frameWidth: 32, frameHeight: 48 }
+    // );
 
   },
   create() {
-    DuelInfo.player.forEach((player) => {
-      player.deck = new Deck()
-      player.deck.setCardList(CardList)
-      player.deck.shuffle()
-    })
 
     this.add.image(400, 300, 'sky');
 
@@ -447,7 +532,6 @@ const scene = {
     this.cardBoard = scene.add.container(0, 300, [])
     DuelInfo.cardBoard = this.cardBoard
 
-    // const Center = 290 ;
 
     SetupPhase.enter(this, this.cardBoard, DuelInfo, () => {
       //
@@ -472,4 +556,4 @@ const config = {
   scene,
 };
 
-var game = new Phaser.Game(config);
+window.game = new Phaser.Game(config);
