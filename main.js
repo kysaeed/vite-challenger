@@ -51,8 +51,9 @@ const CardList = [
 ];
 
 
-
+const Bebel = 8
 const HeightBase = 220
+const WidthBase = -54
 let y = HeightBase
 let enemyY = -HeightBase
 let direction = 1
@@ -71,7 +72,7 @@ class Card {
       this.cardTextPoint,
       this.cardTextTitle,
     ])
-    this.card.angle = 180 * cardDirection
+    this.card.angle = Bebel + (180 * cardDirection)
 
     parent.add(this.card)
 
@@ -86,12 +87,12 @@ class Card {
         {
           x: x,
           y: y,
-          angle: 270,
+          angle: 270 + Bebel,
           scale: 0.3,
           duration: 300,
         },
         {
-          angle: 180,
+          angle: 180 + Bebel,
           x: x,
           y: y,
           ease: 'power1',
@@ -100,7 +101,7 @@ class Card {
         {
           x: x,
           y: y,
-          angle: 180,
+          angle: 180 + Bebel,
           scale: 1.0,
           duration: 200,
         },
@@ -115,14 +116,15 @@ class Card {
   attack(stackCount, onEnd) {
     // console.log('attack..')
 
+    const x = WidthBase * direction
     this.scene.tweens.chain({
       targets: this.card,
       tweens: [
         {
           delay: stackCount * 40,
-          angle: '+=9',
+          // angle: '-=8',
           // angle: 180 * (turnPlayer) + 9,
-          x: 400 + stackCount * 8,
+          x: 0 + stackCount * 8,
           y: 0, //enemyY,
           scale: 1.0,
           duration: 100,
@@ -130,16 +132,16 @@ class Card {
         },
         {
           // angle: 180 * (turnPlayer) + 9,
-          x: 400 + stackCount * 8,
+          x: x + stackCount * 8,
           scale: 1.2,
           y: this.card.y,
           ease: 'power1',
           duration: 300,
         },
         {
-          x: 400 + stackCount * 8,
+          x: x + stackCount * 8,
           y: y + stackCount * 8,
-          angle: '-=9',
+          // angle: '+=8',
           scale: 1.0,
           duration: 200,
           ease: 'power1',
@@ -292,11 +294,11 @@ const SetupPhase = {
     let diffenceCardInfo = player.deck.draw(scene, cardBoard, 400, turnPlayer)
     const card = diffenceCardInfo
     const diffenceCardSprite = card.card
-    diffenceCardSprite.angle = 180 * (1 - turnPlayer)
+    diffenceCardSprite.angle = Bebel + (180 * (1 - turnPlayer))
 
     player.diffenceCard = card
 
-    card.enterTo(400, 0)
+    card.enterTo(0, 0)
 
     onEnd();
   },
@@ -313,33 +315,30 @@ const AttackPhase = {
     const newAttackCard = DuelInfo.player[turnPlayer].deck.draw(scene, cardBoard, 0, turnPlayer);
     if (newAttackCard) {
 
-      const x = 400
+      const x = WidthBase * direction
 
       scene.tweens.chain({
         targets: newAttackCard.card,
         tweens: [
           {
-            x: 400,
+            x: -100,
             y: -10,
-            // angle: 270,
             scale: 2.5,
             duration: 100,
             angle: 0,
           },
           {
             delay: 1000,
-            //angle: 180,
             scale: 1.0,
             x: x,
             y: y,
             ease: 'power1',
             duration: 200,
-            angle: 180 * turnPlayer,
+            angle: Bebel + (180 * turnPlayer),
           },
           {
             x: x,
             y: y,
-            //angle: 180,
             scale: 1.0,
             duration: 100,
           },
@@ -366,7 +365,9 @@ const AttackPhase = {
               console.log('かった！'  + turnPlayer, DuelInfo.player[turnPlayer].attackCards)
 
               DuelInfo.player[turnPlayer].attackCards.forEach((c) => {
-                c.enterTo(400, 0)
+                c.enterTo(0, 0)
+                c.angle = Bebel + (180 * turnPlayer)
+
                 // console.log(c.card)
                 // scene.tweens.chain({
                 //   targets:  c.card,
@@ -395,14 +396,14 @@ const AttackPhase = {
 
               const enemyPlayer = DuelInfo.player[1 - turnPlayer]
               const benchIndex = enemyPlayer.benchCards.length
-              enemyPlayer.diffenceCard.moveToBench(200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer))
+              enemyPlayer.diffenceCard.moveToBench(-200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer))
               enemyPlayer.benchCards.push(enemyPlayer.diffenceCard)
               enemyPlayer.diffenceCard = null
               for (let i = 0; i < enemyPlayer.attackCards.length; i++) {
                 const benchIndex = enemyPlayer.benchCards.length
 
                 enemyPlayer.benchCards.push(enemyPlayer.attackCards[i]);
-                enemyPlayer.attackCards[i].moveToBench(200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer));
+                enemyPlayer.attackCards[i].moveToBench(-200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer));
               }
               enemyPlayer.attackCards = [];
 
@@ -464,7 +465,7 @@ class Deck {
     }
 
     const cardInfo = this.cards.shift()
-    const card = new Card(scene, cardBoard, cardInfo, 400 + stackCount * 8, y + stackCount * 8, turnPlayer)
+    const card = new Card(scene, cardBoard, cardInfo, stackCount * 8, y + stackCount * 8, turnPlayer)
     return card
   }
 
@@ -521,7 +522,7 @@ const scene = {
 
 
     const self = this;
-    this.deckSprite = this.add.sprite(370, 542, 'card_back').setInteractive();
+    this.deckSprite = this.add.sprite(180, 520, 'card_back').setInteractive();
     this.deckSprite.on('pointerdown', function(pointer) {
       AttackPhase.enter(scene, self.cardBoard, flag, DuelInfo, () => {
       })
@@ -529,9 +530,8 @@ const scene = {
 
 
     const flag = new Flag(scene, 480, 170)
-    this.cardBoard = scene.add.container(0, 300, [])
+    this.cardBoard = scene.add.container(400, 300, [])
     DuelInfo.cardBoard = this.cardBoard
-
 
     SetupPhase.enter(this, this.cardBoard, DuelInfo, () => {
       //
