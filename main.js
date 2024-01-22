@@ -298,6 +298,39 @@ class Card {
 
 }
 
+class CardStack {
+  constructor(scene) {
+    this.scene = scene
+    this.cards = []
+  }
+
+  addCard(card) {
+    this.cards.unshift(card)
+  }
+
+  getTotalPower() {
+    //
+    let power = 0
+    this.cards.forEach((c) => {
+      power += c.cardInfo.p
+    })
+    return power
+  }
+
+  getTopCard() {
+    if (!this.cards.length) {
+      return null
+    }
+    return this.cards[0]
+  }
+
+  takeAll() {
+    const cards = this.cards
+    this.cards = []
+    return cards
+  }
+}
+
 const setTurnPlayer = (player) => {
   DuelInfo.turnPlayer = player
   if (!player) {
@@ -376,19 +409,22 @@ const SetupPhase = {
       const x = 0
       const y = 0
       player.bench = new Bench(scene, player.id, x, y)
+
+      player.cardStack = new CardStack(scene)
+
     })
 
+    const diffenceCardInfo = player.deck.draw(scene, cardBoard, 400, turnPlayer)
+    diffenceCardInfo.card.angle = Bebel + (180 * (1 - turnPlayer))
 
-    let diffenceCardInfo = player.deck.draw(scene, cardBoard, 400, turnPlayer)
-    const card = diffenceCardInfo
-    const diffenceCardSprite = card.card
-    diffenceCardSprite.angle = Bebel + (180 * (1 - turnPlayer))
+    ///////
+    player.cardStack.addCard(diffenceCardInfo)
 
-    player.diffenceCard = card
+    diffenceCardInfo.enterTo(-WidthBase, enemyY, 1 - turnPlayer)
 
-    card.enterTo(-WidthBase, enemyY, 1 - turnPlayer)
-
-    onEnd();
+    if (onEnd) {
+      onEnd();
+    }
   },
 
 }
@@ -397,9 +433,8 @@ const AttackPhase = {
   enter(scene, cardBoard, flag, DuelInfo, onEnd) {
 
     const turnPlayer = DuelInfo.turnPlayer
-    const enemyCard = DuelInfo.player[1 - turnPlayer].diffenceCard
+    const enemyCard = DuelInfo.player[1 - turnPlayer].cardStack.getTopCard()
 
-    const stackCount = DuelInfo.player[turnPlayer].attackCards.length
     const newAttackCard = DuelInfo.player[turnPlayer].deck.draw(scene, cardBoard, 0, turnPlayer);
     if (newAttackCard) {
 
@@ -435,28 +470,23 @@ const AttackPhase = {
 
           console.log('diffence-card: OK!')
 
-          DuelInfo.player[turnPlayer].attackCards.push(newAttackCard)
+          DuelInfo.player[turnPlayer].cardStack.addCard(newAttackCard)
 
-          let total = 0
-          DuelInfo.player[turnPlayer].attackCards.forEach((c) => {
-              total += c.cardInfo.p
-          })
+          const total = DuelInfo.player[turnPlayer].cardStack.getTotalPower()
 
-          DuelInfo.player[turnPlayer].attackCards.forEach((c, i) => {
+          DuelInfo.player[turnPlayer].cardStack.cards.forEach((c, i) => {
             const stackCount = i
             c.attack(stackCount)
           })
 
 
-          scene.damageMark.setDamage(1)
-
+          scene.damageMark.setDamage(1) // dummy parama
 
           if (total >= enemyCard.cardInfo.p) {
             enemyCard.damaged(() => {
-              console.log('かった！'  + turnPlayer, DuelInfo.player[turnPlayer].attackCards)
+              console.log('かった！'  + turnPlayer, DuelInfo.player[turnPlayer].cardStack)
 
-              DuelInfo.player[turnPlayer].attackCards.forEach((c) => {
-                //c.enterTo(0, 0, turnPlayer)
+              DuelInfo.player[turnPlayer].cardStack.cards.forEach((c) => {
                 c.angle = Bebel + (180 * turnPlayer)
 
                 // console.log(c.card)
@@ -472,26 +502,14 @@ const AttackPhase = {
                 // })
               })
 
-              DuelInfo.player[turnPlayer].diffenceCard = DuelInfo.player[turnPlayer].attackCards.pop()
-              //DuelInfo.player[turnPlayer].attackCards = []
               flag.moveTo(520, 170 + (200 * (1 - turnPlayer)))
 
-
-              const getBenchY = (benchIndex, turnPlayers) => {
-                if (turnPlayers == 0) {
-                  return 200 - (benchIndex * 70)
-                }
-                return (-200 + (benchIndex * 70));
-              }
-
+              // 攻撃側から見た敵プレイヤー
               const enemyPlayer = DuelInfo.player[1 - turnPlayer]
 
-              ////
-              enemyPlayer.bench.addCards(1 - turnPlayer, [enemyPlayer.diffenceCard]) //////
-              enemyPlayer.bench.addCards(1 - turnPlayer, enemyPlayer.attackCards) //////
-              enemyPlayer.diffenceCard = null
-              enemyPlayer.attackCards = [];
-              //////
+              // ディフェンス側のカードを横へ
+              const deffenceCards = enemyPlayer.cardStack.takeAll()
+              enemyPlayer.bench.addCards(1 - turnPlayer, deffenceCards) //////
 
               if (enemyPlayer.deck.isEmpty()) {
 
@@ -568,16 +586,10 @@ const DuelInfo = {
   turnPlayer: 0,
   player: [
     {
-      deck: [],
-      attackCards: [],
-      diffenceCard: null,
-      benchCards: [],
+      deck: null,
     },
     {
-      deck: [],
-      attackCards: [],
-      diffenceCard: null,
-      benchCards: [],
+      deck:  null,
     },
   ],
   scene: null,
