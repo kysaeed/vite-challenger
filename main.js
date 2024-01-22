@@ -6,49 +6,9 @@
 import Phaser from 'phaser'
 import _ from 'lodash'
 
+import CardList from './CardList'
 
 
-/**
- * https://bodoge.hoobby.net/games/challengers/strategies/41250
- */
-const CardList = [
-  {
-    p: 1,
-    name: '新入り',
-    image: 'chara',
-  },
-  {
-    p: 1,
-    name: '新入り',
-    image: 'chara',
-  },
-  {
-    p: 1,
-    name: '新入り',
-    image: 'chara',
-  },
-  {
-    p: 2,
-    name: 'タレント',
-    image: 'chara',
-  },
-  {
-    p: 2,
-    name: 'タレント',
-    image: 'chara',
-  },
-  {
-    p: 3,
-    name: 'ねこ',
-    image: 'cat',
-  },
-  {
-    p: 4,
-    name: 'チャンピオン',
-    image: 'chara',
-  },
-
-];
 
 
 const Bebel = 8
@@ -109,6 +69,69 @@ class DamageMark {
     //
   }
 
+}
+
+class Bench {
+  constructor(scene, playerId, x, y) {
+    this.playerId = playerId
+    this.scene = scene
+    this.cards = []
+    this.x = x
+    this.y = y
+  }
+
+  addCards(playerId, cardList) {
+
+    playerId = this.playerId
+
+
+
+    const currentPlayer = DuelInfo.player[playerId]
+    cardList.forEach((c, i) => {
+      const benchIndex = this.cards.length
+
+      // this.cards.push([c])
+      this.addCardElement(playerId, c)
+    })
+
+  }
+
+  addCardElement(playerId, card) {
+
+    const getBenchY = (benchIndex, playerId) => {
+      if (playerId == 0) {
+        return 200 - (benchIndex * 70)
+      }
+      return (-200 + (benchIndex * 70));
+    }
+
+    for (let i = 0; i < this.cards.length; i++) {
+      const list = this.cards[i]
+      if (list.length < 1) {
+        list.push(card)
+        card.moveToBench(-200 + ((1 - playerId) * 400), getBenchY(i, playerId));
+
+        return
+      } else {
+        if (list[0].cardInfo.name == card.cardInfo.name) {
+          const stackCount = list.length
+          list.push(card)
+          card.moveToBench(
+            -200 + ((1 - playerId) * 400) - (stackCount * 4),
+            getBenchY(i, playerId) - (stackCount * 4)
+          );
+          return
+        }
+      }
+    }
+
+    const benchIndex = this.cards.length
+    this.cards.push([
+      card
+    ])
+    card.moveToBench(-200 + ((1 - playerId) * 400), getBenchY(benchIndex, playerId));
+
+  }
 }
 
 class Card {
@@ -249,13 +272,16 @@ class Card {
   }
 
   moveToBench(x, y, onEnd) {
+    const max = 6
+    const angle = Math.floor(90 + (Math.random() * max) - (max / 2))
+
     this.scene.tweens.chain({
       targets: this.card,
       tweens: [
         {
           x: x,
           y: y,
-          angle: 90,
+          angle: angle,
           scale: 0.5,
           duration: 400,
           ease: 'power1',
@@ -339,11 +365,19 @@ const SetupPhase = {
     const turnPlayer = DuelInfo.turnPlayer
     const player = DuelInfo.player[1 - turnPlayer]
 
+    DuelInfo.player[0].id = 0
+    DuelInfo.player[1].id = 1
+
     DuelInfo.player.forEach((player) => {
       player.deck = new Deck()
       player.deck.setCardList(CardList)
       player.deck.shuffle()
+
+      const x = 0
+      const y = 0
+      player.bench = new Bench(scene, player.id, x, y)
     })
+
 
     let diffenceCardInfo = player.deck.draw(scene, cardBoard, 400, turnPlayer)
     const card = diffenceCardInfo
@@ -443,7 +477,6 @@ const AttackPhase = {
               flag.moveTo(520, 170 + (200 * (1 - turnPlayer)))
 
 
-
               const getBenchY = (benchIndex, turnPlayers) => {
                 if (turnPlayers == 0) {
                   return 200 - (benchIndex * 70)
@@ -452,17 +485,13 @@ const AttackPhase = {
               }
 
               const enemyPlayer = DuelInfo.player[1 - turnPlayer]
-              const benchIndex = enemyPlayer.benchCards.length
-              enemyPlayer.diffenceCard.moveToBench(-200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer))
-              enemyPlayer.benchCards.push(enemyPlayer.diffenceCard)
-              enemyPlayer.diffenceCard = null
-              for (let i = 0; i < enemyPlayer.attackCards.length; i++) {
-                const benchIndex = enemyPlayer.benchCards.length
 
-                enemyPlayer.benchCards.push(enemyPlayer.attackCards[i]);
-                enemyPlayer.attackCards[i].moveToBench(-200 + (turnPlayer * 400), getBenchY(benchIndex, 1 - turnPlayer));
-              }
+              ////
+              enemyPlayer.bench.addCards(1 - turnPlayer, [enemyPlayer.diffenceCard]) //////
+              enemyPlayer.bench.addCards(1 - turnPlayer, enemyPlayer.attackCards) //////
+              enemyPlayer.diffenceCard = null
               enemyPlayer.attackCards = [];
+              //////
 
               if (enemyPlayer.deck.isEmpty()) {
 
@@ -585,6 +614,7 @@ const scene = {
       AttackPhase.enter(scene, self.cardBoard, flag, DuelInfo, () => {
       })
     });
+
 
 
     const flag = new Flag(scene, 480, 170)
