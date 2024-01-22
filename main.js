@@ -85,7 +85,6 @@ class Bench {
     playerId = this.playerId
 
 
-
     const currentPlayer = DuelInfo.player[playerId]
     cardList.forEach((c, i) => {
       const benchIndex = this.cards.length
@@ -305,7 +304,7 @@ class CardStack {
   }
 
   addCard(card) {
-    this.cards.unshift(card)
+    this.cards.push(card)
   }
 
   getTotalPower() {
@@ -321,7 +320,7 @@ class CardStack {
     if (!this.cards.length) {
       return null
     }
-    return this.cards[0]
+    return this.cards[this.cards.length - 1]
   }
 
   takeAll() {
@@ -438,7 +437,8 @@ const AttackPhase = {
     const newAttackCard = DuelInfo.player[turnPlayer].deck.draw(scene, cardBoard, 0, turnPlayer);
     if (newAttackCard) {
 
-      const x = WidthBase * direction
+      const stackCount = DuelInfo.player[turnPlayer].cardStack.cards.length
+      const x = (WidthBase * direction) - (stackCount * 8)
 
       scene.tweens.chain({
         targets: newAttackCard.card,
@@ -454,14 +454,14 @@ const AttackPhase = {
             delay: 1000,
             scale: 1.0,
             x: x,
-            y: y,
+            y: y - (stackCount * 8),
             ease: 'power1',
             duration: 200,
             angle: Bebel + (180 * turnPlayer),
           },
           {
             x: x,
-            y: y,
+            y: y  - (stackCount * 8),
             scale: 1.0,
             duration: 100,
           },
